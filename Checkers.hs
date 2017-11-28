@@ -14,6 +14,7 @@ type CBoard = [[Maybe CPiece]]
 
 data CMove = Move (Int,Int) (Int, Int)
            | Take (Int,Int) (Int, Int)
+    deriving (Eq, Show)
 
 
 --CONSTRUCTING CHECKERS BOARDS
@@ -34,6 +35,15 @@ makeStandardBoard = board where
     initial = makeEmptyBoard 8 8
 
 --MOVING PIECES
+
+--Execute a move, if it is possible.
+move :: CBoard -> CMove -> CBoard
+move b m@(Move (x1,y1) (x2,y2)) = if any (==m) (listMoves b (x1,y1))
+    then movePiece b m else b
+move b m@(Take (x1,y1) (x2,y2)) = if any (==m) (listMoves b (x1,y1))
+    then movePiece b m else b
+
+--Change a board by performing a given move.
 movePiece :: CBoard -> CMove -> CBoard
 movePiece b (Move (x1,y1) (x2,y2)) = setPiece b' p (x2,y2) where
     p = updatePiece b (x1, y1) (x2,y2)
@@ -42,6 +52,19 @@ movePiece b (Take (x1,y1) (x2,y2)) = setPiece b'' p (x2,y2) where
     p = updatePiece b (x1, y1) (x2, y2)
     b'' = setPiece b' (Nothing) ((quot (x1+x2) 2), (quot (y1+y2) 2))
     b' = setPiece b (Nothing) (x1,y1)
+
+--Get all the moves possible in a given space.
+listMoves :: CBoard -> (Int,Int) -> [CMove]
+listMoves b (x, y) = case getPiece b (x,y) of
+    Just Black -> [Move(x,y) (x2,y2)|(x2,y2)<-allMoves b (x,y), y2>y]
+        ++ [Take(x,y)(x2,y2)|(x2, y2)<-allTakes b (Just Black) (x, y)]
+    Just White -> [Move(x,y) (x2,y2)|(x2,y2)<-allMoves b (x,y), y2<y]
+        ++ [Take(x,y)(x2,y2)|(x2, y2)<-allTakes b (Just White) (x, y)]
+    Just BlackKing -> [Move(x,y)(x2,y2)|(x2,y2)<-allMoves b (x,y)] ++
+        [Take(x,y)(x2,y2)|(x2, y2)<-allTakes b (Just BlackKing) (x, y)]
+    Just WhiteKing -> [Move(x,y)(x2,y2)|(x2,y2)<-allMoves b (x,y)] ++
+        [Take(x,y)(x2,y2)|(x2, y2)<-allTakes b (Just WhiteKing) (x, y)]
+    Nothing -> []
 
 --GET/SET FUNCTIONS
 
@@ -56,7 +79,7 @@ getPiece board (x,y) = case (getElem board y) of
 --Get the piece at a given position, updating it if necassary.
 updatePiece :: CBoard -> (Int,Int) -> (Int,Int) -> Maybe CPiece
 updatePiece b (x1,y1) (x2,y2) = case getPiece b (x1, y1) of
-    Just Black ->if y2 == length b then Just BlackKing else Just Black
+    Just Black ->if y2 == height b then Just BlackKing else Just Black
     Just White ->if y2 == 1 then Just WhiteKing else Just White
     a          -> a
 
@@ -77,6 +100,59 @@ setPiece (l:ls) p (w,h)     = l : (setPiece ls p (w,(h-1)))
 
 --MISC. FUNCTIONS
 
+--Get the width of a board.
+width :: CBoard -> Int
+width []    = 0
+width (h:t) = length h
+
+--Get the height of a board.
+height :: CBoard -> Int
+height = length
+
+--Get the n'th element from a list (if it exists).
+getElem :: [a] -> Int -> Maybe a
+getElem [] _ = Nothing
+getElem (h:_) 1 = Just h
+getElem (h:t) n = getElem t (n-1)
+
+--Get all the open moves around a given spot:
+allMoves :: CBoard -> (Int,Int) -> [(Int,Int)]
+allMoves b (x,y) = [p|p<-onBoard, (getPiece b p) == Nothing] where
+    onBoard = [(x,y) | (x,y)<-spaces, x<width b, y<height b, x>0, y>0]
+    spaces = [(x+1,y+1), (x-1,y+1), (x+1,y-1),(x-1,y-1)]
+    
+--Get all the open 'Take' moves around a given piece in a given spot
+allTakes :: CBoard -> Maybe CPiece -> (Int,Int) -> [(Int,Int)]
+allTakes b Nothing _ = []
+allTakes b (Just Black) (x,y) = takes where
+    takes = [(x2,y2)|(x2,y2)<-free,
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just White ||
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just WhiteKing]
+    free = [s | s <- onBoard, (getPiece b s) == Nothing]
+    onBoard = [(x,y) | (x,y)<-spaces, x<width b, y<height b, x>0, y>0]
+    spaces = [(x+2,y+2), (x-2,y+2)]
+allTakes b (Just BlackKing) (x,y) = takes where
+    takes = [(x2,y2)|(x2,y2)<-free,
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just White ||
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just WhiteKing]
+    free = [s | s <- onBoard, (getPiece b s) == Nothing]
+    onBoard = [(x,y) | (x,y)<-spaces, x<width b, y<height b, x>0, y>0]
+    spaces = [(x+2,y+2), (x-2,y+2), (x+2,y-2), (x-2,y-2)]
+allTakes b (Just White) (x,y) = takes where
+    takes = [(x2,y2)|(x2,y2)<-free,
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just Black ||
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just BlackKing]
+    free = [s | s <- onBoard, (getPiece b s) == Nothing]
+    onBoard = [(x,y) | (x,y)<-spaces, x<width b, y<height b, x>0, y>0]
+    spaces = [(x+2,y-2), (x-2,y-2)]
+allTakes b (Just WhiteKing) (x,y) = takes where
+    takes = [(x2,y2)|(x2,y2)<-free,
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just Black ||
+        getPiece b (quot (x2+x) 2, quot (y2+y) 2) == Just BlackKing]
+    free = [s | s <- onBoard, (getPiece b s) == Nothing]
+    onBoard = [(x,y) | (x,y)<-spaces, x<width b, y<height b, x>0, y>0]
+    spaces = [(x+2,y+2), (x-2,y+2), (x+2,y-2), (x-2,y-2)]
+
 --Print a board
 printBoard :: CBoard -> IO ()
 printBoard b = putStr (showBoard b)
@@ -93,9 +169,3 @@ showPiece (Just WhiteKing) = "W"
 showPiece (Just Black) = "b"
 showPiece (Just BlackKing) = "B"
 showPiece (Nothing) = "-"
-
---Get the n'th element from a list (if it exists).
-getElem :: [a] -> Int -> Maybe a
-getElem [] _ = Nothing
-getElem (h:_) 1 = Just h
-getElem (h:t) n = getElem t (n-1)
