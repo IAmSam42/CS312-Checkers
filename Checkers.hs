@@ -37,11 +37,11 @@ makeStandardBoard = board where
 --MOVING PIECES
 
 --Execute a move, if it is possible.
-move :: CBoard -> CMove -> CBoard
+move :: CBoard -> CMove -> Maybe CBoard
 move b m@(Move (x1,y1) (x2,y2)) = if any (==m) (listMoves b (x1,y1))
-    then movePiece b m else b
+    then Just (movePiece b m) else Nothing
 move b m@(Take (x1,y1) (x2,y2)) = if any (==m) (listMoves b (x1,y1))
-    then movePiece b m else b
+    then Just (movePiece b m) else Nothing
 
 --Change a board by performing a given move.
 movePiece :: CBoard -> CMove -> CBoard
