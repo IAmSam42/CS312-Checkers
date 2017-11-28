@@ -36,10 +36,10 @@ makeStandardBoard = board where
 --MOVING PIECES
 movePiece :: CBoard -> CMove -> CBoard
 movePiece b (Move (x1,y1) (x2,y2)) = setPiece b' p (x2,y2) where
-    p = getPiece b (x1, y1)
+    p = updatePiece b (x1, y1) (x2,y2)
     b' = setPiece b (Nothing) (x1,y1)
 movePiece b (Take (x1,y1) (x2,y2)) = setPiece b'' p (x2,y2) where
-    p = getPiece b (x1, y1)
+    p = updatePiece b (x1, y1) (x2, y2)
     b'' = setPiece b' (Nothing) ((quot (x1+x2) 2), (quot (y1+y2) 2))
     b' = setPiece b (Nothing) (x1,y1)
 
@@ -52,6 +52,13 @@ getPiece board (x,y) = case (getElem board y) of
     Just ls -> case (getElem ls x) of
         Nothing -> Nothing
         Just x  -> x
+
+--Get the piece at a given position, updating it if necassary.
+updatePiece :: CBoard -> (Int,Int) -> (Int,Int) -> Maybe CPiece
+updatePiece b (x1,y1) (x2,y2) = case getPiece b (x1, y1) of
+    Just Black ->if y2 == length b then Just BlackKing else Just Black
+    Just White ->if y2 == 1 then Just WhiteKing else Just White
+    a          -> a
 
 --Set a piece in a given position, overwriting what is currently
 --there. The types is:
