@@ -38,6 +38,10 @@ movePiece :: CBoard -> CMove -> CBoard
 movePiece b (Move (x1,y1) (x2,y2)) = setPiece b' p (x2,y2) where
     p = getPiece b (x1, y1)
     b' = setPiece b (Nothing) (x1,y1)
+movePiece b (Take (x1,y1) (x2,y2)) = setPiece b'' p (x2,y2) where
+    p = getPiece b (x1, y1)
+    b'' = setPiece b' (Nothing) ((quot (x1+x2) 2), (quot (y1+y2) 2))
+    b' = setPiece b (Nothing) (x1,y1)
 
 --GET/SET FUNCTIONS
 
