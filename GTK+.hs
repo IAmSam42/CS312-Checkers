@@ -111,13 +111,13 @@ mkButton
   :: IORef Value       -- ^ 'IORef' to calculator state
   -> Entry             -- ^ Our display to update
   -> String            -- ^ Button label
-  -> (Value -> Value)  -- ^ How this button affects calculator state
+  -> (Value -> Value)  -- ^ How this button affects checkerboard state
   -> IO Button         -- ^ Resulting button object
 mkButton st display label mutateState = do
   btn <- buttonNew
   set btn [ buttonLabel := label ]
   btn `on` buttonActivated $ do  -- (1)
-    value <- atomicModifyIORef st $ \x -> let r = mutateState x in (r, r) -- (2)
+  -- do something
     updateDisplay display value  -- (3)
   return btn
 
@@ -125,118 +125,4 @@ mkButton st display label mutateState = do
 updateDisplay :: Entry -> Value -> IO ()
 updateDisplay display value =
   set display [ entryText := renderValue value ]
-
--- | 'Value' holds textual representation of first argument reversed and
--- 'Action' to apply to it, which see.
-data Value = Value String (Maybe Action)
-
--- | Action to apply to first argument and textual representation of second
--- argument reversed (if relevant).
-data Action
-  = Addition       String
-  | Subtraction    String
-  | Multiplication String
-  | Division       String
-
--- | Change second argument inside of 'Action'.
-mapAction :: (String -> String) -> Action -> Action
-mapAction f (Addition       x) = Addition       (f x)
-mapAction f (Subtraction    x) = Subtraction    (f x)
-mapAction f (Multiplication x) = Multiplication (f x)
-mapAction f (Division       x) = Division       (f x)
-
--- | Get second argument from 'Action'.
-getSndArg :: Action -> String
-getSndArg (Addition       x) = x
-getSndArg (Subtraction    x) = x
-getSndArg (Multiplication x) = x
-getSndArg (Division       x) = x
-
--- | Render given 'Value'.
-renderValue :: Value -> String
-renderValue (Value x action) =
-  g x ++ f a ++ (if null y then "" else g y)
-  where
-    (a, y) =
-      case action of
-        Nothing                   -> ("", "")
-        Just (Addition       arg) -> ("+", arg)
-        Just (Subtraction    arg) -> ("–", arg)
-        Just (Multiplication arg) -> ("*", arg)
-        Just (Division       arg) -> ("÷", arg)
-    f "" = ""
-    f l  = " " ++ l ++ " "
-    g "" = "0"
-    g xs = reverse xs
-
--- STATE MUTATING FUNCTIONS PER BUTTON
--- | Change state as if a dot is entered.
-enterDot :: Value -> Value
-enterDot (Value x action) =
-  let f xs = if '.' `elem` xs then xs else '.' : xs
-  in case action of
-       Nothing -> Value (f x) Nothing
-       Just  a -> Value x (Just $ mapAction f a)
-
--- | Change state as if specific char (digit) is entered.
-enterDigit :: Char -> Value -> Value
-enterDigit ch (Value x action) =
-  case action of
-    Nothing -> Value (ch:x) Nothing
-    Just  a -> Value x (Just $ mapAction (ch:) a)
-
--- | Change state as if last character of current argument is removed.
-backspace :: Value -> Value
-backspace (Value x action) =
-  case action of
-    Nothing -> Value (drop 1 x) Nothing
-    Just  a -> Value x (Just $ mapAction (drop 1) a)
-
--- | Apply given operator to current state. If some action is already fully
--- constructed, evaluate it first.
-operator :: (String -> Action) -> Value -> Value
-operator op value =
-  let (Value x action) = equals value
-  in Value x $ Just $
-    case action of
-      Nothing -> op ""
-      Just  a -> op (getSndArg a)
-
--- | Change state as if current argument is removed.
-clearEntry :: Value -> Value
-clearEntry (Value x action) =
-  case action of
-    Nothing -> Value "" Nothing
-    Just  a ->
-      if null (getSndArg a)
-        then Value "" Nothing
-        else Value x (Just $ mapAction (const "") a)
-
--- | Change state returning it to the default value.
-clearAll :: Value -> Value
-clearAll = const (Value "" Nothing)
-
--- | Evaluate current calculator's state putting result in place of first
--- argument.
-equals :: Value -> Value
-equals (Value x action) =
-  case action of
-    Nothing -> Value x Nothing
-    Just  a ->
-      if null (getSndArg a)
-        then Value x action
-        else Value result Nothing
-          where
-            g  :: String -> Double
-            g ""       = 0
-            g ('.':xs) = g ('0':'.':xs)
-            g xs       = read (reverse xs)
-            x' = g x
-            y' = g (getSndArg a)
-            result = reverse . show $
-              case a of
-                Addition       _ -> x' + y'
-                Subtraction    _ -> x' - y'
-                Multiplication _ -> x' * y'
-                Division       _ -> x' / y'
 
