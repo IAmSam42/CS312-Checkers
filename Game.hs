@@ -4,11 +4,13 @@ import Data.IORef
 blankline :: IO ()
 blankline = putStrLn " "
 
+--startGame and prints the starting board
 gameStart :: IO ()
 gameStart = do
    putStrLn "Game Start!, White is first to move"
    printBoard makeStandardBoard
 
+--recurse turns between black and white
 recurse :: CBoard -> IO b
 recurse board = do
    board2 <- blackMove board
@@ -17,7 +19,7 @@ recurse board = do
    board2 <- whiteMove board
    recurse board2
 
-   
+--if valid move, move the piece, update, and return the board
 validMove :: CBoard -> Int -> Int -> IO CBoard
 validMove b x y = do
    blankline
@@ -34,6 +36,7 @@ validMove b x y = do
    printBoard newb
    return newb   
 
+--P1/White Turn
 whiteMove :: CBoard -> IO CBoard
 whiteMove board = do
    blankline
@@ -52,7 +55,7 @@ whiteMove board = do
    print list 
    validMove b x y 
  
-
+--P2/Black Turn
 blackMove :: CBoard -> IO CBoard
 blackMove board = do
    blankline
